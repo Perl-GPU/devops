@@ -13,7 +13,7 @@ jobs:
     continue-on-error: true
     if: ${{ always() }}
     steps:
-      - uses: PDLPorters/devops/github-actions/irc-notifications@master
+      - uses: Perl-GPU/devops/github-actions/irc-notifications@main
         with:
           target-notifications: false # TODO
   ci:
@@ -37,14 +37,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: 'ci-dist: target-setup-perl'
-        uses: PDLPorters/devops/github-actions/ci-dist@master
+        uses: Perl-GPU/devops/github-actions/ci-dist@main
         with:
           target-setup-perl: true
           perl-version: ${{ matrix.perl-version }}
-      - name: Install PDL dependencies
-        uses: PDLPorters/devops/github-actions/install-dep-pdl-dep@master
       - name: 'ci-dist: target-all'
-        uses: PDLPorters/devops/github-actions/ci-dist@master
+        uses: Perl-GPU/devops/github-actions/ci-dist@main
         with:
           target-setup-perl: false
           target-install-dist-perl-deps: true
@@ -61,7 +59,7 @@ jobs:
     if: ${{ always() }}
     needs: [ 'ci' ]
     steps:
-      - uses: PDLPorters/devops/github-actions/irc-notifications@master
+      - uses: Perl-GPU/devops/github-actions/irc-notifications@main
         with:
           target-build-status: false # TODO
           needs: ${{ toJSON(needs) }}

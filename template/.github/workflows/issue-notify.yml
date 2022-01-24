@@ -12,6 +12,6 @@ jobs:
     continue-on-error: true
     if: ${{ always() }}
     steps:
-      - uses: PDLPorters/devops/github-actions/irc-notifications@master
+      - uses: Perl-GPU/devops/github-actions/irc-notifications@main
         with:
           target-notifications: true

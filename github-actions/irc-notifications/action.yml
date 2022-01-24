@@ -3,14 +3,14 @@ inputs:
   repository_owner:
     description: Organization/owner that notifications are triggered for.
     required: true
-    default: 'PDLPorters'
+    default: 'Perl-GPU'
   repository:
     description: Repository that notifications are triggered for.
     required: true
     default: ''
   irc-channel:
     required: true
-    default: '#pdl'
+    default: '#pogl'
   irc-server:
     required: true
     default: 'irc.perl.org'
@@ -19,7 +19,7 @@ inputs:
     default: '6667'
   irc-nickname:
     required: true
-    default: 'pdl-commits'
+    default: 'gpu-commits'
   irc-tls:
     required: true
     default: false
