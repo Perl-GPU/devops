@@ -1,0 +1,16 @@
+name: Install GLFW
+runs:
+  using: "composite"
+  steps:
+    - name: Install GLFW
+      shell: bash
+      run: |
+        if ${{ toJSON( runner.os == 'Linux' ) }}; then
+          echo "::group::Install GLFW (via apt-get)"
+          sudo apt-get install libglfw3-dev
+          echo "::endgroup::"
+        elif ${{ toJSON( runner.os == 'macOS' ) }}; then
+          echo "::group::Install GLFW (via brew)"
+          brew install glfw
+          echo "::endgroup::"
+        fi
