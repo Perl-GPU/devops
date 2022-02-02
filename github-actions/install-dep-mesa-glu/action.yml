@@ -1,0 +1,16 @@
+name: Install Mesa GLU
+runs:
+  using: "composite"
+  steps:
+    - name: Install Mesa GLU
+      shell: bash
+      run: |
+        if ${{ toJSON( runner.os == 'Linux' ) }}; then
+          echo "::group::Install Mesa GLU (via apt-get)"
+          sudo apt-get install libglu1-mesa-dev
+          echo "::endgroup::"
+        elif ${{ toJSON( runner.os == 'macOS' ) }}; then
+          echo "::group::Install Mesa GLU (via brew)"
+          brew install mesa-glu
+          echo "::endgroup::"
+        fi
