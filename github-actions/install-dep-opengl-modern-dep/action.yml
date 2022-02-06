@@ -1,0 +1,5 @@
+name: Install dependencies for OpenGL-Modern
+runs:
+  using: "composite"
+  steps:
+    - uses: Perl-GPU/devops/github-actions/install-dep-mesa-glu@main

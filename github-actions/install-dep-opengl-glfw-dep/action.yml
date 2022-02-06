@@ -1,0 +1,6 @@
+name: Install dependencies for OpenGL-GLFW
+runs:
+  using: "composite"
+  steps:
+    - uses: Perl-GPU/devops/github-actions/install-dep-opengl-modern-dep@main
+    - uses: Perl-GPU/devops/github-actions/install-dep-glfw@main

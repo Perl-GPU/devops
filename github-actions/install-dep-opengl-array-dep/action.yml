@@ -1,0 +1,12 @@
+name: Install dependencies for OpenGL-Array
+runs:
+  using: "composite"
+  steps:
+    - name: Install OpenGL-Array deps
+      shell: bash
+      run: |
+        if ${{ toJSON( runner.os == 'Linux' ) }}; then
+          echo "::group::Install OpenGL-Array deps (via apt-get)"
+          sudo apt-get install libgl1-mesa-dev
+          echo "::endgroup::"
+        fi
