@@ -147,70 +147,63 @@ runs:
   steps:
     # Target: none
     # Shared step to do initial set up
-    - name: initial setup
+    - name: set SYSTEM_CORES (Linux)
+      shell: bash
+      if: runner.os == 'Linux'
+      run: echo SYSTEM_CORES="$(grep -c ^processor /proc/cpuinfo 2>/dev/null || echo 1 )" >> $GITHUB_ENV
+    - name: set SYSTEM_CORES (macOS)
+      shell: bash
+      if: runner.os == 'macOS'
+      run: echo SYSTEM_CORES="$(sysctl -n hw.ncpu || echo 1)" >> $GITHUB_ENV
+    - name: set SYSTEM_CORES (Windows)
+      shell: bash
+      if: runner.os == 'Windows'
+      run: echo SYSTEM_CORES=$( powershell -NoProfile -Command "& { Get-WmiObject Win32_Processor | Select-Object -Property NumberOfCores }" | perl -0777 -ne 'print $1, "\n" while /(\d+)/g' ) >> $GITHUB_ENV
+    - name: set MAKEFLAGS
       shell: bash
       run: |
-          echo "::group::initial setup"
-          export SYSTEM_CORES=1;
-          if ${{ toJSON( runner.os == 'Linux' ) }}; then
-            export SYSTEM_CORES="$(grep -c ^processor /proc/cpuinfo 2>/dev/null || echo 1 )"
-          elif ${{ toJSON( runner.os == 'macOS' ) }}; then
-            export SYSTEM_CORES="$(sysctl -n hw.ncpu || echo 1)"
-          elif ${{ toJSON( runner.os == 'Windows' ) }}; then
-            export SYSTEM_CORES=$( powershell -NoProfile -Command "& { Get-WmiObject Win32_Processor | Select-Object -Property NumberOfCores }" | perl -0777 -ne 'print $1, "\n" while /(\d+)/g' );
-          fi
-          echo "SYSTEM_CORES=$SYSTEM_CORES" >> $GITHUB_ENV
-          if ${{ toJSON(
-                 fromJSON(inputs.build-enable-parallel || 'true')
-              ) }}; then
-            echo "MAKEFLAGS=-j$(( SYSTEM_CORES + 1))" >> $GITHUB_ENV
-          fi
+        if ${{ toJSON(fromJSON(inputs.build-enable-parallel || 'true')) }}; then
+          echo "MAKEFLAGS=-j$(( SYSTEM_CORES + 1))" >> $GITHUB_ENV
+        fi
 
-          #if ${{ toJSON( runner.os == 'Windows' ) }}; then
-          #  # Set TEMP to full path instead of 8.3 short filenames.
-          #  # See <https://github.com/actions/virtual-environments/issues/712>.
-          #  # $USERPROFILE\\AppData\\Local\\Temp
-          #  [ -d 'C:\tmp' ] || mkdir 'C:\tmp';
-          #  echo 'TMP=C:\tmp' >> $GITHUB_ENV
-          #  echo 'TEMP=C:\tmp' >> $GITHUB_ENV
-          #fi
-
-          # This is needed for Clang 12 due to
-          # <https://github.com/Perl/perl5/issues/18780>.
-          if ${{ toJSON( runner.os == 'macOS' ) }}; then
-            PATCH_EUMM_DIR=$HOME/build_aux
-            [ -d $PATCH_EUMM_DIR ] || mkdir $PATCH_EUMM_DIR
-            if [ ! -f $PATCH_EUMM_DIR/clang12_no_warnings.pm ]; then
-              echo 'package clang12_no_warnings; use ExtUtils::MakeMaker::Config; $Config{ccflags} = join " ", $Config{ccflags}, "-Wno-compound-token-split-by-macro"; 1;' > $PATCH_EUMM_DIR/clang12_no_warnings.pm
-              echo "PERL5OPT=${PERL5OPT:+${PERL5OPT} }-I$PATCH_EUMM_DIR -Mclang12_no_warnings" >> $GITHUB_ENV
-            fi
+    - name: setup Clang noise suppression (MacOS)
+      shell: bash
+      if: runner.os == 'macOS'
+      run: |
+        # This is needed for Clang 12 due to
+        # <https://github.com/Perl/perl5/issues/18780>.
+        echo "::group::setup Clang noise suppression (MacOS)"
+        PATCH_EUMM_DIR=$HOME/build_aux
+        [ -d $PATCH_EUMM_DIR ] || mkdir $PATCH_EUMM_DIR
+        if [ ! -f $PATCH_EUMM_DIR/clang12_no_warnings.pm ]; then
+          echo 'package clang12_no_warnings; use ExtUtils::MakeMaker::Config; $Config{ccflags} = join " ", $Config{ccflags}, "-Wno-compound-token-split-by-macro"; 1;' > $PATCH_EUMM_DIR/clang12_no_warnings.pm
+          echo "PERL5OPT=${PERL5OPT:+${PERL5OPT} }-I$PATCH_EUMM_DIR -Mclang12_no_warnings" >> $GITHUB_ENV
+        fi
+        echo "::endgroup::"
+    # Shared step for setting up graphical display.
+    - name: Set up graphical display (via apt-get)
+      shell: bash
+      if: runner.os == 'Linux'
+      run: |
+        if ${{ toJSON(
+              (
+                fromJSON(inputs.build-enable-graphical-display || 'false')
+                ||
+                fromJSON(inputs.test-enable-graphical-display || 'false')
+              )
+            ) }}; then
+          echo "::group::Install xvfb (via apt-get)"
+          sudo apt-get install --no-install-recommends -y xvfb
+          mkdir /tmp/runtime-runner && chmod 0700 /tmp/runtime-runner
+          echo "XDG_RUNTIME_DIR=/tmp/runtime-runner" >> $GITHUB_ENV
+          if ${{ fromJSON(inputs.build-enable-graphical-display || 'false') }}; then
+            echo "BUILD_RUNNER_PREFIX=xvfb-run -a" >> $GITHUB_ENV
+          fi
+          if ${{ fromJSON(inputs.test-enable-graphical-display || 'false') }}; then
+            echo "TEST_RUNNER_PREFIX=xvfb-run -a" >> $GITHUB_ENV
           fi
           echo "::endgroup::"
-    # Shared step for setting up graphical display.
-    - name: Set up graphical display
-      shell: bash
-      run: |
-          if ${{ toJSON(
-                (
-                  fromJSON(inputs.build-enable-graphical-display || 'false')
-                  ||
-                  fromJSON(inputs.test-enable-graphical-display || 'false')
-                )
-              ) }}; then
-            if ${{ toJSON( runner.os == 'Linux' ) }}; then
-              echo "::group::Install xvfb (via apt-get)"
-              sudo apt-get install xvfb
-              mkdir /tmp/runtime-runner && chmod 0700 /tmp/runtime-runner
-              echo "XDG_RUNTIME_DIR=/tmp/runtime-runner" >> $GITHUB_ENV
-              if ${{ fromJSON(inputs.build-enable-graphical-display || 'false') }}; then
-                echo "BUILD_RUNNER_PREFIX=xvfb-run -a" >> $GITHUB_ENV
-              fi
-              if ${{ fromJSON(inputs.test-enable-graphical-display || 'false') }}; then
-                echo "TEST_RUNNER_PREFIX=xvfb-run -a" >> $GITHUB_ENV
-              fi
-              echo "::endgroup::"
-            fi
-          fi
+        fi
     # Target: target-setup-perl
     - name: target-setup-perl (actions-setup-perl)
       shell: bash
@@ -257,7 +250,7 @@ runs:
                 )
       uses: actions/cache@v4
       with:
-        key: locallib-v2.${{ inputs.perl-deps-cache-version }}-${{ runner.os }}-${{ env.GHA_CACHE_PERL_V_HASH }}
+        key: locallib-v2.${{ inputs.perl-deps-cache-version }}-${{ runner.os }}-${{ inputs.perl-version }}-${{ env.GHA_CACHE_PERL_V_HASH }}
         path: ~/perl5
     - name: target-setup-perl (ccache)
       # ccache support on Windows is not well-tested
@@ -284,8 +277,8 @@ runs:
               ) }}; then
             echo "::group::setup-perl (setup local::lib)"
             # older Perls need this upgrade
-            $MYPERL -S cpanm -n --local-lib=~/perl5 ExtUtils::MakeMaker
-            $MYPERL -S cpanm -n --local-lib=~/perl5 local::lib
+            $MYPERL -S cpanm -n --local-lib=~/perl5 ExtUtils::MakeMaker || ( cat ~/.cpanm/build.log && false )
+            $MYPERL -S cpanm -n --local-lib=~/perl5 local::lib || ( cat ~/.cpanm/build.log && false )
             LOCALLIB_VARS="$($MYPERL -I ~/perl5/lib/perl5 -Mlocal::lib=--shelltype,bourne )"
             eval $( echo "$LOCALLIB_VARS" | $MYPERL -MFile::Spec -pne '
               $_ = "" if /^PATH=/;
@@ -334,8 +327,8 @@ runs:
               ) }}; then
             echo "::group::test-release-testing (via cpanm)"
             cd ${{ inputs.path }}
-            $BUILD_RUNNER_PREFIX $MYPERL -S cpanm -n --installdeps --with-develop . || cat ~/.cpanm/build.log
-            $BUILD_RUNNER_PREFIX $MYPERL -S cpanm -n CPAN::Changes || cat ~/.cpanm/build.log
+            $BUILD_RUNNER_PREFIX $MYPERL -S cpanm -n --installdeps --with-develop . || ( cat ~/.cpanm/build.log && false )
+            $BUILD_RUNNER_PREFIX $MYPERL -S cpanm -n CPAN::Changes || ( cat ~/.cpanm/build.log && false )
             if [ -d xt ]; then
               $TEST_RUNNER_PREFIX $MYPERL -S prove -lr xt
             else
@@ -366,11 +359,14 @@ runs:
             fi
             echo "::endgroup::"
           fi
-    - name: GNU make for Windows
+    - name: set MYMAKE (Windows)
       shell: bash
-      if: ${{ matrix.os == 'windows-latest' }}
-      run: |
-        choco install --verbose make
+      if: runner.os == 'Windows'
+      run: echo MYMAKE=gmake >> $GITHUB_ENV
+    - name: set MYMAKE (non-Windows)
+      shell: bash
+      if: runner.os != 'Windows'
+      run: echo MYMAKE=make >> $GITHUB_ENV
     - name: target-test (no coverage)
       shell: bash
       env:
@@ -386,9 +382,9 @@ runs:
             echo "::group::test (no coverage)"
             cd ${{ inputs.path }}
             if [ -f Makefile.PL ]; then
-              ( $TEST_RUNNER_PREFIX make && $TEST_RUNNER_PREFIX make test ) || exit 1
+              ( $TEST_RUNNER_PREFIX $MYMAKE && $TEST_RUNNER_PREFIX $MYMAKE test ) || exit 1
             elif [ -f Build.PL ]; then
-              ( $TEST_RUNNER_PREFIX ./Build test ) || exit 1
+              ( $TEST_RUNNER_PREFIX $MYPERL Build test ) || exit 1
             else
               echo "No file Makefile.PL or Build.PL" >&2
             fi
@@ -409,8 +405,8 @@ runs:
               ) }}; then
             echo "::group::test (with coverage)"
             cd ${{ inputs.path }}
-            $MYPERL -S cpanm -n Devel::Cover::Report::Coveralls || cat ~/.cpanm/build.log
-            $MYPERL -S cpanm -n git://github.com/PDLPorters/Devel--Cover.git@patches || cat ~/.cpanm/build.log
+            $MYPERL -S cpanm -n Devel::Cover::Report::Coveralls || ( cat ~/.cpanm/build.log && false )
+            $MYPERL -S cpanm -n https://github.com/PDLPorters/Devel--Cover.git@patches || ( cat ~/.cpanm/build.log && false )
             $TEST_RUNNER_PREFIX $MYPERL -S cover -test -relative_only -gcov_chdir -report Coveralls
             echo "::endgroup::"
           fi
