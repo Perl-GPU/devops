@@ -2,15 +2,11 @@ name: Install dependencies for pogl
 runs:
   using: "composite"
   steps:
-    - name: Install pogl deps
+    - name: Install pogl deps (Linux)
       shell: bash
-      run: |
-        if ${{ toJSON( runner.os == 'Linux' ) }}; then
-          echo "::group::Install OpenGL.pm deps (via apt-get)"
-          sudo apt-get install libx11-dev libxpm-dev libxi-dev libxmu-dev freeglut3-dev
-          echo "::endgroup::"
-        elif ${{ toJSON( runner.os == 'macOS' ) }}; then
-          echo "::group::Install OpenGL.pm deps (via brew)"
-          brew install freeglut
-          echo "::endgroup::"
-        fi
+      if: runner.os == 'Linux'
+      run: sudo apt-get install libx11-dev libxpm-dev libxi-dev libxmu-dev freeglut3-dev
+    - name: Install pogl deps (macOS)
+      shell: bash
+      if: runner.os == 'macOS'
+      run: brew install freeglut
