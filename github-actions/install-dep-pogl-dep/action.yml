@@ -10,3 +10,6 @@ runs:
       shell: bash
       if: runner.os == 'macOS'
       run: brew install freeglut
+    #- name: Install Mesa Windows
+    #  if: runner.os == 'Windows'
+    #  uses: ssciwr/setup-mesa-dist-win@v2
